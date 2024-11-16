@@ -4,7 +4,7 @@ import os
 import PIL.Image as Image
 import torch
 from tqdm import tqdm
-
+from data import data_transforms
 from model_factory import ModelFactory
 
 
@@ -14,7 +14,7 @@ def opts() -> argparse.ArgumentParser:
     parser.add_argument(
         "--data",
         type=str,
-        default="data_sketches",
+        default="sketch_recvis2024",
         metavar="D",
         help="folder where data is located. test_images/ need to be found in the folder",
     )
@@ -60,7 +60,7 @@ def main() -> None:
 
     # load model and transform
     state_dict = torch.load(args.model)
-    model, data_transforms = ModelFactory(args.model_name).get_all()
+    model, _ = ModelFactory(args.model_name).get_all()[:2]
     model.load_state_dict(state_dict)
     model.eval()
     if use_cuda:

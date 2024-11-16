@@ -1,3 +1,7 @@
 __pycache__/
-data_sketches/
+sketch_recvis2024/
 experiment/
+configuration_files/
+experiments_checkpoints/
+experiments_logs/
+mva-recvis-2024.zip
