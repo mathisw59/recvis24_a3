@@ -78,10 +78,15 @@ class ModelConfig(BaseModel):
     pretrained: bool = False
     supervised: bool = True
     weights_path: Optional[Path] = None
+    fix_encoder: bool = False
+    head: Optional[str] = "linear"
 
     @field_validator('name')
     def validate_model(cls, v):
-        allowed = ['resnet18', 'vit', 'basic_cnn', 'mobilenetv3', 'mobilenetv3_small', 'mobilenetv3_large']
+        allowed = ['resnet18', 'vit', 'basic_cnn',
+                   'mobilenetv3', 'mobilenetv3_small', 'mobilenetv3_large',
+                   'squeezenet1_1', 'squeezenet1_0', 'squeezenet1',
+                   'efficientnetv2', 'efficientnet']
         if v.lower() not in allowed:
             raise ValueError(f'Model must be one of {allowed}')
         return v.lower()
@@ -118,6 +123,7 @@ class TrainingConfig(BaseModel):
     
     # Training features
     gradient_clipping: Optional[float] = None
+    gradient_checkpointing: bool = False
     
     class Config:
         arbitrary_types_allowed = True

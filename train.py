@@ -151,7 +151,7 @@ def train(
 
                     if modelFactory.mixed_precision:
                         with torch.cuda.amp.autocast():
-                            torch.cuda.empty_cache()
+                            # torch.cuda.empty_cache()
                             output = model(data)
                             if modelFactory.supervised:
                                 loss = criterion(output, target)
@@ -166,7 +166,7 @@ def train(
                         modelFactory.scaler.update()
                     
                     else:
-                        torch.cuda.empty_cache() # Clear CUDA cache to prevent OOM errors
+                        # torch.cuda.empty_cache() # Clear CUDA cache to prevent OOM errors
                         output = model(data)
                         if modelFactory.supervised:
                             loss = criterion(output, target)
@@ -206,8 +206,10 @@ def train(
                     writer.flush()
 
                 ### VALIDATION STEP ###
+                # if epoch == modelFactory.epochs:
                 val_loss = validation(modelFactory, writer, epoch, progress, validation_task)
-
+                # else:
+                #     val_loss = 0
                 ## MODEL SAVING ##
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
@@ -215,16 +217,19 @@ def train(
                     # Save model
                     checkpoint_path = f"{modelFactory.checkpoint_path}_best.pth"
                     if modelFactory.supervised:
-                        torch.save(model["backbone"].state_dict(), checkpoint_path)
+                        torch.save(model[0].state_dict(), checkpoint_path)
                     else:
-                        torch.save(model.model["backbone"].state_dict(), checkpoint_path)
+                        torch.save(model.model[0].state_dict(), checkpoint_path)
                     console.print(f"[green]Model saved:[/] {checkpoint_path}")
                 else:
                     no_improvement_epochs += 1
                 
                 if epoch % modelFactory.save_interval == 0:
-                    checkpoint_path = f"{modelFactory.checkpoint_path}/{modelFactory.save_name}_{epoch}.pth"
-                    torch.save(model["backbone"].state_dict(), checkpoint_path)
+                    checkpoint_path = os.path.join(modelFactory.checkpoint_path, f"{modelFactory.save_name}_{epoch}.pth")
+                    if modelFactory.supervised:
+                        torch.save(model[0].state_dict(), checkpoint_path)
+                    else:
+                        torch.save(model.model[0].state_dict(), checkpoint_path)
                     console.print(f"[green]Model saved:[/] {checkpoint_path}")
 
                 ## SCHEDULER STEP ##
@@ -262,13 +267,13 @@ def train(
                                 f"[blue]Train Loss:[/] {avg_train_loss:.4f}, "
                                 f"[yellow]Validation Loss:[/] {val_loss:.4f}")
                 
-                if modelFactory.supervised:
-                    plot_feature_importance(model, next(iter(val_loader))[0], next(iter(val_loader))[1], writer, epoch)
+                # if modelFactory.supervised:
+                #     plot_feature_importance(model, next(iter(val_loader))[0], next(iter(val_loader))[1], writer, epoch)
 
                 ## EARLY STOPPING ##
-                if modelFactory.early_stopping and no_improvement_epochs >= modelFactory.early_stopping.patience:
-                    console.print("[bold red]Early stopping triggered[/]")
-                    break
+                # if modelFactory.early_stopping and no_improvement_epochs >= modelFactory.early_stopping.patience:
+                #     console.print("[bold red]Early stopping triggered[/]")
+                #     break
 
         finally:
             # Cleanup
@@ -302,7 +307,7 @@ def validation(
             if modelFactory.use_cuda:
                 data, target = data.cuda(), target.cuda()
 
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
             output = model(data)
             
             if modelFactory.supervised:

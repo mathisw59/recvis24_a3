@@ -7,23 +7,75 @@ from torchvision import models
 from collections import OrderedDict
 
 from yaml_parser import ModelConfig, TrainingConfig
+from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import CheckpointWrapper
 
 nclasses = 500
 
+import torch.utils.checkpoint as checkpoint
+
+def checkpoint_hook(module, input, output):
+    # Apply checkpointing to the module itself
+    return checkpoint.checkpoint(module, *input)
+
+def apply_checkpoint_hooks(model):
+    # Iterate over all named modules in the model
+    for name, module in model.named_modules():
+        # Apply checkpointing to convolutional layers (Conv2d and Conv1d)
+        if isinstance(module, (nn.Conv2d, nn.Conv1d)):
+            module.register_forward_hook(checkpoint_hook)
+        
+        # Apply checkpointing to fully connected layers (Linear)
+        elif isinstance(module, nn.Linear):
+            module.register_forward_hook(checkpoint_hook)
+
+        elif isinstance(module, nn.MultiheadAttention):
+            module.register_forward_hook(checkpoint_hook)
+
+
+# class Net(nn.Module):
+#     def __init__(self):
+#         super(Net, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 10, kernel_size=5)
+#         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+#         self.conv3 = nn.Conv2d(20, 20, kernel_size=5)
+
+#     def forward(self, x):
+#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
+#         x = F.relu(F.max_pool2d(self.conv2(x), 2))
+#         x = F.relu(F.max_pool2d(self.conv3(x), 2))
+#         x = x.view(-1, 320)
+#         return x
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, output_dim=512):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv3 = nn.Conv2d(20, 20, kernel_size=5)
-
+        
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
+        
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        
+        self.conv5 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        
+        self.fc = nn.Linear(32 * 7 * 7, output_dim)
+        
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
-        x = F.relu(F.max_pool2d(self.conv3(x), 2))
-        x = x.view(-1, 320)
-        return x
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv3(x)))
+        x = self.pool(F.relu(self.conv4(x)))
+        
+        x = F.relu(self.conv5(x))
+        x = self.pool2(x)
+        
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        
+        return x        
+
 
 class SelfSupervisedModel(nn.Module):
     def __init__(self, model):
@@ -40,10 +92,9 @@ class SelfSupervisedModel(nn.Module):
         return out
 
 
-
 def getBackboneModel(model_config: ModelConfig):
     if model_config.name == "basic_cnn":
-        in_features = 320
+        in_features = 512
         encoder = Net()
     elif model_config.name == "mobilenetv3" or model_config.name == "mobilenetv3_small":
         if model_config.pretrained:
@@ -68,7 +119,6 @@ def getBackboneModel(model_config: ModelConfig):
             encoder = models.resnet18(models.ResNet18_Weights.DEFAULT) if model_config.name == "resnet18" else models.resnet50(models.ResNet50_Weights)
         else:
             encoder = models.resnet18() if model_config.name == "resnet18" else models.resnet50()
-        
         in_features = encoder.fc.in_features
         encoder.fc = nn.Identity()
 
@@ -79,6 +129,40 @@ def getBackboneModel(model_config: ModelConfig):
             encoder = models.vit_b_16()
         in_features = encoder.heads[0].in_features
         encoder.heads = nn.Identity()
+
+    elif model_config.name == 'squeezenet' or model_config.name == 'squeezenet1_1':
+        if model_config.pretrained:
+            # i don't find it necessary to remove the classifier head for squeenet, as its just conv + relu + pooling
+            # maybe i'm wrong, and it would be wise to look at linear evaluation results keeping the classification head
+            encoder = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_1', pretrained=True)
+        else:
+            encoder = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_1')
+        in_features = 1000
+
+    elif model_config.name == 'squeezenet1_0':
+        if model_config.pretrained:
+            # i don't find it necessary to remove the classifier head for squeenet, as its just conv + relu + pooling
+            # maybe i'm wrong, and it would be wise to look at linear evaluation results keeping the classification head
+            encoder = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_0', pretrained=True)
+        else:
+            encoder = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_0')
+        in_features = 1000
+
+    elif model_config.name == "efficientnet":
+        if model_config.pretrained:
+            encoder = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b0', pretrained=True)
+        else:
+            encoder = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b0')
+        in_features = encoder.classifier.in_features
+        encoder.classifier = nn.Identity()
+
+    elif model_config.name == "efficientnetv2":
+        if model_config.pretrained:
+            encoder = models.efficientnet_v2_s(weights=models.EfficientNet_V2_S_Weights.DEFAULT)
+        else:
+            encoder = models.efficientnet_v2_s()
+        in_features = encoder.classifier[1].in_features
+        encoder.classifier = nn.Identity()
     
     return encoder, in_features
 
@@ -97,8 +181,16 @@ def get_CLSHead(in_features, out_features):
 
 def get_complete_model(config: TrainingConfig):
     backbone, in_features = getBackboneModel(config.model)
+    if config.model.fix_encoder:
+        for param in backbone.parameters():
+            param.requires_grad = False
     out_features = nclasses if config.model.supervised else 128
-    head = get_CLSHead(in_features, out_features) if config.model.supervised else get_CLRHead(in_features, out_features)
+    if config.model.head == "linear":
+        head = get_CLSHead(in_features, out_features)
+    elif config.model.head == "simclr":
+        head = get_CLRHead(in_features, out_features)
+    else:
+        raise ValueError(f"Invalid head type {config.model.head}")
 
     model = nn.Sequential(OrderedDict([
         ['backbone', backbone],
@@ -106,10 +198,13 @@ def get_complete_model(config: TrainingConfig):
     ]))
 
     if config.model.weights_path:
-        model['backbone'].load_state_dict(torch.load(config.model.weights_path))
+        model[0].load_state_dict(torch.load(config.model.weights_path))
 
     if not config.model.supervised:
         model = SelfSupervisedModel(model)
+
+    if config.gradient_checkpointing:
+        apply_checkpoint_hooks(model)
     
     return model
 

@@ -181,6 +181,14 @@ def main2():
 
     train(modelFactory)
 
+from model_files import to_do_list
+def main3():
+    for file in to_do_list:
+        modelFactory = ModelFactory.from_yaml(file)
+        train(modelFactory)
+        del modelFactory
+        torch.cuda.empty_cache()
+
 def main():
     """Default Main Function."""
     # options

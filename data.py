@@ -53,7 +53,7 @@ def get_dataloaders(config: TrainingConfig):
     supervised = config.model.supervised
     data_config = config.data
 
-    if data_config.transform == None:
+    if data_config.transform == None or data_config.transform.lower() == "basic":
         transform = data_transforms
     elif data_config.transform.lower() == "simclr":
         transform = sim_clr
