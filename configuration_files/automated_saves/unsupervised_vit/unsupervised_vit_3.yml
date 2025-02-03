@@ -1,0 +1,42 @@
+checkpoint_dir: experiments_checkpoints\unsupervised_vit
+config_dir: configuration_files\automated_saves\unsupervised_vit
+criterion:
+  name: simclr
+  params:
+    temperature: 0.05
+data:
+  batch_size: 32
+  directory: sketch_recvis2024
+  num_workers: 8
+  shuffle: true
+  transform: simclr
+early_stopping:
+  min_delta: 0.001
+  mode: min
+  patience: 5
+epochs: 10
+experiment_name: Unsupervised Sim CLR
+gradient_clipping: 1.0
+log_dir: experiments_logs\unsupervised_vit
+log_interval: 1
+mixed_precision: true
+mixed_precision_level: float16
+model:
+  name: vit
+  pretrained: true
+  supervised: false
+  weights_path: null
+optimizer:
+  betas: null
+  lr: 0.001
+  momentum: null
+  name: adamw
+  weight_decay: 1.0e-05
+save_interval: 1
+scheduler:
+  name: cosine
+  params:
+    T_max: 10
+    eta_min: 1.0e-06
+seed: 1
+use_cuda: true

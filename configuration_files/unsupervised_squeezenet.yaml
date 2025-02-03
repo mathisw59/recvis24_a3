@@ -1,0 +1,44 @@
+# This is the configuration file for the unsupervised SimCLR experiment
+experiment_name: Unsupervised Sim CLR
+checkpoint_dir: experiments_checkpoints/unsupervised_squeezenet/
+log_dir: experiments_logs/unsupervised_squeezenet/
+log_interval: 1
+config_dir: configuration_files/automated_saves/unsupervised_squeezenet/ # Directory where the configuration file will be saved with the same name as the experiment name
+epochs: 10
+seed: 1
+mixed_precision: true
+mixed_precision_level: float16
+gradient_clipping: 1.0
+
+
+model:
+  name: squeezenet1_1
+  pretrained: true
+  supervised: false
+
+
+criterion:
+  name: simclr
+  params:
+    temperature: 0.05
+
+optimizer:
+  name: adamw
+  lr: 0.001
+  weight_decay: 1.0e-5
+
+scheduler:
+  name: cosine
+  params:
+    T_max: 10
+    eta_min: 1.0e-6
+
+data:
+  directory: sketch_recvis2024/
+  transform: simclr
+  batch_size: 256
+  num_workers: 8
+
+early_stopping:
+  min_delta: 0.001
+  patience: 5

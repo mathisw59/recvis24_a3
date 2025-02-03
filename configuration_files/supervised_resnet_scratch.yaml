@@ -1,0 +1,43 @@
+# This is the configuration file for the unsupervised SimCLR experiment
+experiment_name: Supervised Sim CLR Resnet 18
+checkpoint_dir: experiments_checkpoints/supervised_resnet18_scratch/
+log_dir: experiments_logs/supervised_resnet18_scratch/
+log_interval: 1
+config_dir: configuration_files/automated_saves/supervised_resnet18_scratch/ # Directory where the configuration file will be saved with the same name as the experiment name
+epochs: 20
+seed: 1
+# mixed_precision: true
+# mixed_precision_level: float16
+# gradient_clipping: 1.0
+
+model:
+  name: resnet18
+  pretrained: true
+  supervised: true
+  fix_encoder: true
+  head: simclr # linear, simclr
+
+
+criterion:
+  name: crossentropy
+
+optimizer:
+  name: adamw
+  lr: 0.01
+  weight_decay: 1.0e-5
+
+scheduler:
+  name: cosine
+  params:
+    T_max: 20
+    eta_min: 1.0e-6
+
+data:
+  directory: sketch_recvis2024/
+  transform: basic
+  batch_size: 256
+  num_workers: 8
+
+early_stopping:
+  min_delta: 0.001
+  patience: 5

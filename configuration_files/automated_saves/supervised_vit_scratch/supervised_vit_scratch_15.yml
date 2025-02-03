@@ -1,0 +1,45 @@
+checkpoint_dir: experiments_checkpoints\supervised_vit_scratch
+config_dir: configuration_files\automated_saves\supervised_vit_scratch
+criterion:
+  name: crossentropy
+  params:
+    temperature: 0.1
+data:
+  batch_size: 32
+  directory: sketch_recvis2024
+  num_workers: 8
+  shuffle: true
+  transform: basic
+early_stopping:
+  min_delta: 0.001
+  mode: min
+  patience: 5
+epochs: 20
+experiment_name: Supervised Sim ViT
+gradient_checkpointing: false
+gradient_clipping: null
+log_dir: experiments_logs\supervised_vit_scratch
+log_interval: 1
+mixed_precision: false
+mixed_precision_level: float32
+model:
+  fix_encoder: true
+  head: simclr
+  name: vit
+  pretrained: true
+  supervised: true
+  weights_path: null
+optimizer:
+  betas: null
+  lr: 0.01
+  momentum: null
+  name: adamw
+  weight_decay: 1.0e-05
+save_interval: 1
+scheduler:
+  name: cosine
+  params:
+    T_max: 20
+    eta_min: 1.0e-06
+seed: 1
+use_cuda: true
