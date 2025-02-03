@@ -1,6 +1,6 @@
-## This is the GitHub repository for the SketchNet classification challenge.
+## This is the GitHub repository for the ImageNet-Sketch classification challenge.
 
-SkecthNet is a dataset of 500 classes, with 5 samples per class, augmented into 20 different views. The goal of the challenge is to classify the sketches into the 500 classes.
+ImageNet-Sketch is a dataset of 500 classes, with 5 samples per class, augmented into 20 different views. The goal of the challenge is to classify the sketches into the 500 classes.
 
 I explored many approaches to this problem, including:
 - Using a pre-trained models like ResNet50, ViT, Swin Transformer, etc. and fine-tuning them on the dataset.
